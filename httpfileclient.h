@@ -15,6 +15,7 @@ public:
     void setAddress(const string &value);
     bool connectToServer(string address, uint16_t port);
     string getFileFromServer(string fileName);
+    bool getFileFromServerAndSave(string fileName, string fullPath);
 
 private:
 

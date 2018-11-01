@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sstream>
+#include <fstream>
 
 HttpFileClient::HttpFileClient()
 {
@@ -63,8 +64,32 @@ string HttpFileClient::getFileFromServer(string fileName)
     //cout<<"Get from server:"<<recievedBytes<<endl;
     incomeMessage<<string(reciveBuffer, recievedBytes);
     }
-    auto pos = incomeMessage.str().find_first_of(string("\r\n\r\n"));
-    string file = incomeMessage.str().substr(pos+2, incomeMessage.str().length() - pos - 2);
+    auto pos = incomeMessage.str().find("\r\n\r\n", 0);
+
+    string file = incomeMessage.str().substr(pos+4, incomeMessage.str().length() - pos - 4);
 
     return file;
+}
+
+bool HttpFileClient::getFileFromServerAndSave(string fileName, string fullPath)
+{
+    string file = getFileFromServer(fileName);
+    if (file.length()==0){
+        cout<<"Error in file recieving"<<endl;
+        return false;
+    }
+
+    ofstream of;
+    of.open(fullPath);
+
+    if (of){
+        of<<file;
+        of.close();
+        return true;
+
+    }else{
+        cout<<"Couldn't write to file: "<<fullPath;
+    }
+    return false;
+
 }
