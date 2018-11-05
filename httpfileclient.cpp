@@ -11,8 +11,8 @@
 
 HttpFileClient::HttpFileClient()
 {
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock < 0)
+    socket_ = socket(AF_INET, SOCK_STREAM, 0);
+    if(socket_ < 0)
     {
         perror("Error during socket creation");
     }
@@ -20,7 +20,7 @@ HttpFileClient::HttpFileClient()
 
 HttpFileClient::~HttpFileClient()
 {
-    close(sock);
+    close(socket_);
 }
 
 bool HttpFileClient::connectToServer(string address, uint16_t port)
@@ -32,39 +32,37 @@ bool HttpFileClient::connectToServer(string address, uint16_t port)
     addr.sin_addr.s_addr = inet_addr(address.c_str());
 
     cout<<"Try to connect to server: "<<address<<":"<<port<<endl;
-    if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    if(connect(socket_, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         perror("Error during connection");
         return false;
     }
+    cout<<"Connected successfully"<<endl;
 
     return true;
-
 }
 
-string HttpFileClient::getFileFromServer(string fileName)
-{
-    string message = "GET /"+fileName+" HTTP/1.1"
-                     "User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0"
-                     "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-                     "Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3"
-                     "Accept-Encoding: gzip, deflate"
-                     "Connection: keep-alive"
-                     "Upgrade-Insecure-Requests: 1";
+string HttpFileClient::getFileFromServer(string fileName){
+    string message = "GET /"+fileName+" HTTP/1.1";
 
-    cout<<"Try to send"<<endl;
-    send(sock, message.c_str(), message.length(), 0);
+    send(socket_, message.c_str(), message.length(), 0);
 
-    char* reciveBuffer = new char[4096];
+    char* reciveBuffer = new char[BUFFER_SIZE];
 
     stringstream incomeMessage;
     while (1){
-    auto recievedBytes = recv(sock, reciveBuffer, 4096, 0);
-    if (recievedBytes==0) break;
-    //cout<<"Get from server:"<<recievedBytes<<endl;
-    incomeMessage<<string(reciveBuffer, recievedBytes);
+        auto recievedBytes = recv(socket_, reciveBuffer, BUFFER_SIZE, 0);
+        if (recievedBytes==0) break;
+        //cout<<"Get from server:"<<recievedBytes<<endl;
+        incomeMessage<<string(reciveBuffer, recievedBytes);
     }
-    auto pos = incomeMessage.str().find("\r\n\r\n", 0);
+
+    auto firstSpace = incomeMessage.str().find_first_of(' ');
+    auto secondSpace = incomeMessage.str().find_first_of(' ', firstSpace+1);
+
+    status_ = static_cast<Status>(stoi(incomeMessage.str().substr(firstSpace, secondSpace-firstSpace)));
+
+    auto pos = incomeMessage.str().find("\r\n\r\n", 0); // пустая строка между заголовком и телом
 
     string file = incomeMessage.str().substr(pos+4, incomeMessage.str().length() - pos - 4);
 
@@ -74,22 +72,35 @@ string HttpFileClient::getFileFromServer(string fileName)
 bool HttpFileClient::getFileFromServerAndSave(string fileName, string fullPath)
 {
     string file = getFileFromServer(fileName);
-    if (file.length()==0){
+    ofstream of;
+
+    switch (status_) {
+    case Status::OK:
+
+        of.open(fullPath);
+
+        if (of){
+            of<<file;
+            of.close();
+
+            cout<<"Recieved file has been saved as "<<fullPath<<endl;
+            return true;
+
+        }else{
+            cout<<"Couldn't write to file: "<<fullPath;
+        }
+
+        break;
+
+    case Status::NOTFOUND:
+        cout<<file;
+        return false;
+        break;
+
+    default:
         cout<<"Error in file recieving"<<endl;
         return false;
     }
 
-    ofstream of;
-    of.open(fullPath);
-
-    if (of){
-        of<<file;
-        of.close();
-        return true;
-
-    }else{
-        cout<<"Couldn't write to file: "<<fullPath;
-    }
     return false;
-
 }

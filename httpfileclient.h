@@ -1,10 +1,17 @@
 #ifndef HTTPFILECLIENT_H
 #define HTTPFILECLIENT_H
 
+#define BUFFER_SIZE 4096
+
 #include <string>
 #include <netinet/in.h>
 
 using namespace std;
+
+enum class Status{
+    NOTFOUND = 404,
+    OK=200
+};
 
 class HttpFileClient
 {
@@ -18,8 +25,8 @@ public:
     bool getFileFromServerAndSave(string fileName, string fullPath);
 
 private:
-
-    int sock;
+    int socket_;
+    Status status_;
 
 };
 

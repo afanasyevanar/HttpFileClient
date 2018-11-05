@@ -1,8 +1,5 @@
 #include "httpfileclient.h"
 
-#include <iostream>
-
-
 int main()
 {
     HttpFileClient client;
